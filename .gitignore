@@ -6,4 +6,6 @@ __pycache__/
 .env
 venv/
 *.pth
+data/
+outputs/
 .DS_Store

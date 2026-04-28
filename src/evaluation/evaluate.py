@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import torch
 from sklearn.metrics import (
@@ -11,7 +11,13 @@ from sklearn.metrics import (
 )
 
 
-def evaluate_model(model, loader, device) -> Dict[str, object]:
+def evaluate_model(
+    model,
+    loader,
+    device,
+    class_names: Optional[List[str]] = None,
+    positive_class: str = "fake",
+) -> Dict[str, object]:
     model.eval()
     y_true: List[int] = []
     y_pred: List[int] = []
@@ -25,13 +31,30 @@ def evaluate_model(model, loader, device) -> Dict[str, object]:
             y_true.extend(labels.numpy())
             y_pred.extend(preds.cpu().numpy())
 
+    positive_label = 1
+    if class_names is not None:
+        positive_label = class_names.index(positive_class)
+
     return {
         "accuracy": accuracy_score(y_true, y_pred),
-        "precision": precision_score(y_true, y_pred),
-        "recall": recall_score(y_true, y_pred),
-        "f1_score": f1_score(y_true, y_pred),
+        "positive_class": positive_class,
+        "positive_label": positive_label,
+        "precision": precision_score(
+            y_true, y_pred, pos_label=positive_label, zero_division=0
+        ),
+        "recall": recall_score(
+            y_true, y_pred, pos_label=positive_label, zero_division=0
+        ),
+        "f1_score": f1_score(
+            y_true, y_pred, pos_label=positive_label, zero_division=0
+        ),
         "confusion_matrix": confusion_matrix(y_true, y_pred),
-        "classification_report": classification_report(y_true, y_pred),
+        "classification_report": classification_report(
+            y_true,
+            y_pred,
+            target_names=class_names,
+            zero_division=0,
+        ),
         "y_true": y_true,
         "y_pred": y_pred,
     }

@@ -1,4 +1,5 @@
 import copy
+from pathlib import Path
 from typing import Dict, Tuple
 
 import torch
@@ -68,6 +69,9 @@ def fit(
     epochs: int = 10,
     save_path: str = "best_model.pth"
 ):
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
     best_val_acc = 0.0
     best_model_wts = copy.deepcopy(model.state_dict())
 
