@@ -81,6 +81,7 @@ def main():
     print("Precision:", round(results["precision"], 4))
     print("Recall   :", round(results["recall"], 4))
     print("F1 Score :", round(results["f1_score"], 4))
+    print("ROC-AUC  :", round(results["roc_auc"], 4))
 
     print("\nClassification Report:\n")
     print(results["classification_report"])
