@@ -17,7 +17,12 @@ def list_images(folder: Path):
     ]
 
 
-def copy_subset(source_dir: Path, output_dir: Path, images_per_class: int, seed: int):
+def copy_subset(
+    source_dir: Path,
+    output_dir: Path,
+    images_per_split: dict,
+    seed: int,
+):
     rng = random.Random(seed)
 
     if output_dir.exists():
@@ -28,6 +33,8 @@ def copy_subset(source_dir: Path, output_dir: Path, images_per_class: int, seed:
     total_copied = 0
 
     for split in SPLITS:
+        images_per_class = images_per_split[split]
+
         for class_name in CLASSES:
             src_folder = source_dir / split / class_name
             dst_folder = output_dir / split / class_name
@@ -71,7 +78,25 @@ def parse_args():
         "--images-per-class",
         default=50,
         type=int,
-        help="Number of images to copy for each class in each split. Default: 50",
+        help=(
+            "Fallback number of images to copy for each class in each split. "
+            "Default: 50"
+        ),
+    )
+    parser.add_argument(
+        "--train-per-class",
+        type=int,
+        help="Number of training images to copy per class.",
+    )
+    parser.add_argument(
+        "--val-per-class",
+        type=int,
+        help="Number of validation images to copy per class.",
+    )
+    parser.add_argument(
+        "--test-per-class",
+        type=int,
+        help="Number of test images to copy per class.",
     )
     parser.add_argument(
         "--seed",
@@ -84,10 +109,16 @@ def parse_args():
 
 def main():
     args = parse_args()
+    images_per_split = {
+        "train": args.train_per_class or args.images_per_class,
+        "val": args.val_per_class or args.images_per_class,
+        "test": args.test_per_class or args.images_per_class,
+    }
+
     copy_subset(
         source_dir=args.source,
         output_dir=args.output,
-        images_per_class=args.images_per_class,
+        images_per_split=images_per_split,
         seed=args.seed,
     )
 
