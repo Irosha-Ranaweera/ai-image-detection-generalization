@@ -69,6 +69,10 @@ def save_summary_csv(summary_rows, output_path):
         writer.writerows(summary_rows)
 
 
+def dataset_size(dataset):
+    return len(dataset)
+
+
 def save_predictions_csv(
     output_path,
     test_loader,
@@ -133,11 +137,23 @@ def save_roc_curve(output_path, baseline_results, eca_results):
     plt.close()
 
 
+def make_json_safe(value):
+    if isinstance(value, dict):
+        return {key: make_json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [make_json_safe(item) for item in value]
+    if hasattr(value, "item"):
+        return value.item()
+    return value
+
+
 def main():
     data_dir = os.environ.get("DATA_DIR", "data")
     model_name = os.environ.get("MODEL_NAME", "resnet18")
     batch_size = int(os.environ.get("BATCH_SIZE", 32))
     num_workers = int(os.environ.get("NUM_WORKERS", 0))
+    epochs = os.environ.get("EPOCHS", "not_recorded")
+    learning_rate = os.environ.get("LEARNING_RATE", "not_recorded")
     baseline_checkpoint = os.environ.get(
         "BASELINE_CHECKPOINT", f"outputs/checkpoints/best_{model_name}.pth"
     )
@@ -150,12 +166,38 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
-    _, _, test_loader, class_names = get_dataloaders(
+    train_loader, val_loader, test_loader, class_names = get_dataloaders(
         data_dir=data_dir,
         batch_size=batch_size,
         num_workers=num_workers,
     )
     print("Classes:", class_names)
+
+    metadata = {
+        "data_dir": data_dir,
+        "model_name": model_name,
+        "epochs": epochs,
+        "batch_size": batch_size,
+        "learning_rate": learning_rate,
+        "num_workers": num_workers,
+        "device": str(device),
+        "class_names": class_names,
+        "positive_class": "fake",
+        "dataset_sizes": {
+            "train": dataset_size(train_loader.dataset),
+            "val": dataset_size(val_loader.dataset),
+            "test": dataset_size(test_loader.dataset),
+            "total": (
+                dataset_size(train_loader.dataset)
+                + dataset_size(val_loader.dataset)
+                + dataset_size(test_loader.dataset)
+            ),
+        },
+        "checkpoints": {
+            "baseline": baseline_checkpoint,
+            "eca": eca_checkpoint,
+        },
+    }
 
     baseline_model = get_baseline_resnet(model_name=model_name, num_classes=2)
     baseline_model = load_state_dict(
@@ -192,6 +234,13 @@ def main():
     summary_rows = [
         {
             "model": "ResNet18 baseline",
+            "dataset_total": metadata["dataset_sizes"]["total"],
+            "train_size": metadata["dataset_sizes"]["train"],
+            "val_size": metadata["dataset_sizes"]["val"],
+            "test_size": metadata["dataset_sizes"]["test"],
+            "epochs": epochs,
+            "batch_size": batch_size,
+            "learning_rate": learning_rate,
             "accuracy": baseline_results["accuracy"],
             "precision_fake": baseline_results["precision"],
             "recall_fake": baseline_results["recall"],
@@ -203,6 +252,13 @@ def main():
         },
         {
             "model": "ResNet18 + ECA",
+            "dataset_total": metadata["dataset_sizes"]["total"],
+            "train_size": metadata["dataset_sizes"]["train"],
+            "val_size": metadata["dataset_sizes"]["val"],
+            "test_size": metadata["dataset_sizes"]["test"],
+            "epochs": epochs,
+            "batch_size": batch_size,
+            "learning_rate": learning_rate,
             "accuracy": eca_results["accuracy"],
             "precision_fake": eca_results["precision"],
             "recall_fake": eca_results["recall"],
@@ -238,13 +294,14 @@ def main():
     )
 
     report = {
+        "metadata": metadata,
         "summary": summary_rows,
         "mcnemar_test": mcnemar_results,
         "baseline_classification_report": baseline_results["classification_report"],
         "eca_classification_report": eca_results["classification_report"],
     }
     with (analysis_dir / "analysis_report.json").open("w", encoding="utf-8") as file:
-        json.dump(report, file, indent=2)
+        json.dump(make_json_safe(report), file, indent=2)
 
     print("\nModel Comparison")
     for row in summary_rows:
