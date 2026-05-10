@@ -23,6 +23,7 @@ def main():
     epochs = int(os.environ.get("EPOCHS", 10))
     learning_rate = float(os.environ.get("LEARNING_RATE", 1e-4))
     num_workers = int(os.environ.get("NUM_WORKERS", 0))
+    fine_tune_layer4 = os.environ.get("FINE_TUNE_LAYER4", "false").lower() == "true"
     output_dir = os.environ.get("OUTPUT_DIR", "outputs/figures")
     checkpoint_path = os.environ.get("CHECKPOINT_PATH")
     save_path = os.environ.get(
@@ -48,10 +49,19 @@ def main():
         print("Loaded checkpoint:", checkpoint_path)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.AdamW(
-        list(model.eca.parameters()) + list(model.classifier.parameters()),
-        lr=learning_rate,
-    )
+    trainable_parameters = list(model.eca.parameters()) + list(model.classifier.parameters())
+    if fine_tune_layer4:
+        for param in model.backbone.layer4.parameters():
+            param.requires_grad = True
+        trainable_parameters += list(model.backbone.layer4.parameters())
+        print("Fine-tuning layer4, ECA, and classifier head")
+    else:
+        print("Training ECA and classifier head only")
+
+    trainable_count = sum(param.numel() for param in model.parameters() if param.requires_grad)
+    print("Trainable parameters:", trainable_count)
+
+    optimizer = optim.AdamW(trainable_parameters, lr=learning_rate)
 
     model, history = fit(
         model=model,

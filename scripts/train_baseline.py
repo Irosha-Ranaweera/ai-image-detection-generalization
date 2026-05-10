@@ -22,6 +22,7 @@ def main():
     epochs = int(os.environ.get("EPOCHS", 10))
     learning_rate = float(os.environ.get("LEARNING_RATE", 1e-4))
     num_workers = int(os.environ.get("NUM_WORKERS", 0))
+    fine_tune_layer4 = os.environ.get("FINE_TUNE_LAYER4", "false").lower() == "true"
     output_dir = os.environ.get("OUTPUT_DIR", "outputs/figures")
     checkpoint_path = os.environ.get("CHECKPOINT_PATH")
     save_path = os.environ.get("SAVE_PATH", f"outputs/checkpoints/best_{model_name}.pth")
@@ -46,11 +47,19 @@ def main():
 
     criterion = nn.CrossEntropyLoss()
 
-    # Only train classification head at first
-    if model_name in ["resnet18", "resnet50"]:
-        optimizer = optim.AdamW(model.fc.parameters(), lr=learning_rate)
+    trainable_parameters = list(model.fc.parameters())
+    if fine_tune_layer4:
+        for param in model.layer4.parameters():
+            param.requires_grad = True
+        trainable_parameters += list(model.layer4.parameters())
+        print("Fine-tuning layer4 and classifier head")
     else:
-        optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
+        print("Training classifier head only")
+
+    trainable_count = sum(param.numel() for param in model.parameters() if param.requires_grad)
+    print("Trainable parameters:", trainable_count)
+
+    optimizer = optim.AdamW(trainable_parameters, lr=learning_rate)
 
     model, history = fit(
         model=model,
