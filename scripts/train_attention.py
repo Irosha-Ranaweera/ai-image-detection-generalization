@@ -24,6 +24,7 @@ def main():
     learning_rate = float(os.environ.get("LEARNING_RATE", 1e-4))
     num_workers = int(os.environ.get("NUM_WORKERS", 0))
     fine_tune_layer4 = os.environ.get("FINE_TUNE_LAYER4", "false").lower() == "true"
+    transform_mode = os.environ.get("TRANSFORM_MODE", "rgb")
     output_dir = os.environ.get("OUTPUT_DIR", "outputs/figures")
     checkpoint_path = os.environ.get("CHECKPOINT_PATH")
     save_path = os.environ.get(
@@ -37,9 +38,11 @@ def main():
         data_dir=data_dir,
         batch_size=batch_size,
         num_workers=num_workers,
+        transform_mode=transform_mode,
     )
 
     print("Classes:", class_names)
+    print("Transform mode:", transform_mode)
 
     model = AttentionResNet(model_name=model_name, num_classes=2)
     model = model.to(device)

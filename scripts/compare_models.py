@@ -33,6 +33,12 @@ def count_parameters(model):
     return total, trainable
 
 
+def enable_layer4_fine_tuning(model, is_attention_model: bool):
+    layer4 = model.backbone.layer4 if is_attention_model else model.layer4
+    for parameter in layer4.parameters():
+        parameter.requires_grad = True
+
+
 def mcnemar_exact_test(y_true, baseline_pred, eca_pred):
     baseline_correct = [truth == pred for truth, pred in zip(y_true, baseline_pred)]
     eca_correct = [truth == pred for truth, pred in zip(y_true, eca_pred)]
@@ -154,6 +160,8 @@ def main():
     num_workers = int(os.environ.get("NUM_WORKERS", 0))
     epochs = os.environ.get("EPOCHS", "not_recorded")
     learning_rate = os.environ.get("LEARNING_RATE", "not_recorded")
+    transform_mode = os.environ.get("TRANSFORM_MODE", "rgb")
+    fine_tune_layer4 = os.environ.get("FINE_TUNE_LAYER4", "false").lower() == "true"
     baseline_checkpoint = os.environ.get(
         "BASELINE_CHECKPOINT", f"outputs/checkpoints/best_{model_name}.pth"
     )
@@ -170,6 +178,7 @@ def main():
         data_dir=data_dir,
         batch_size=batch_size,
         num_workers=num_workers,
+        transform_mode=transform_mode,
     )
     print("Classes:", class_names)
 
@@ -179,6 +188,8 @@ def main():
         "epochs": epochs,
         "batch_size": batch_size,
         "learning_rate": learning_rate,
+        "transform_mode": transform_mode,
+        "fine_tune_layer4": fine_tune_layer4,
         "num_workers": num_workers,
         "device": str(device),
         "class_names": class_names,
@@ -206,6 +217,10 @@ def main():
 
     eca_model = AttentionResNet(model_name=model_name, num_classes=2)
     eca_model = load_state_dict(eca_model, eca_checkpoint, device).to(device)
+
+    if fine_tune_layer4:
+        enable_layer4_fine_tuning(baseline_model, is_attention_model=False)
+        enable_layer4_fine_tuning(eca_model, is_attention_model=True)
 
     baseline_total, baseline_trainable = count_parameters(baseline_model)
     eca_total, eca_trainable = count_parameters(eca_model)
@@ -241,6 +256,8 @@ def main():
             "epochs": epochs,
             "batch_size": batch_size,
             "learning_rate": learning_rate,
+            "transform_mode": transform_mode,
+            "fine_tune_layer4": fine_tune_layer4,
             "accuracy": baseline_results["accuracy"],
             "precision_fake": baseline_results["precision"],
             "recall_fake": baseline_results["recall"],
@@ -259,6 +276,8 @@ def main():
             "epochs": epochs,
             "batch_size": batch_size,
             "learning_rate": learning_rate,
+            "transform_mode": transform_mode,
+            "fine_tune_layer4": fine_tune_layer4,
             "accuracy": eca_results["accuracy"],
             "precision_fake": eca_results["precision"],
             "recall_fake": eca_results["recall"],

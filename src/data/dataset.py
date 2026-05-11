@@ -7,8 +7,8 @@ from torchvision import datasets
 from src.data.transforms import get_transforms
 
 
-def get_datasets(data_dir: str):
-    train_transform, eval_transform = get_transforms()
+def get_datasets(data_dir: str, transform_mode: str = "rgb"):
+    train_transform, eval_transform = get_transforms(transform_mode=transform_mode)
 
     train_dataset = datasets.ImageFolder(
         root=os.path.join(data_dir, "train"),
@@ -31,9 +31,13 @@ def get_datasets(data_dir: str):
 def get_dataloaders(
     data_dir: str,
     batch_size: int = 32,
-    num_workers: int = 2
+    num_workers: int = 2,
+    transform_mode: str = "rgb",
 ) -> Tuple[DataLoader, DataLoader, DataLoader, list]:
-    train_dataset, val_dataset, test_dataset = get_datasets(data_dir)
+    train_dataset, val_dataset, test_dataset = get_datasets(
+        data_dir=data_dir,
+        transform_mode=transform_mode,
+    )
 
     train_loader = DataLoader(
         train_dataset,
