@@ -22,6 +22,7 @@ def main():
     epochs = int(os.environ.get("EPOCHS", 10))
     learning_rate = float(os.environ.get("LEARNING_RATE", 1e-4))
     num_workers = int(os.environ.get("NUM_WORKERS", 0))
+    early_stopping_patience = int(os.environ.get("EARLY_STOPPING_PATIENCE", 0))
     fine_tune_layer4 = os.environ.get("FINE_TUNE_LAYER4", "false").lower() == "true"
     transform_mode = os.environ.get("TRANSFORM_MODE", "rgb")
     output_dir = os.environ.get("OUTPUT_DIR", "outputs/figures")
@@ -72,7 +73,8 @@ def main():
         optimizer=optimizer,
         device=device,
         epochs=epochs,
-        save_path=save_path
+        save_path=save_path,
+        early_stopping_patience=early_stopping_patience,
     )
 
     results = evaluate_model(

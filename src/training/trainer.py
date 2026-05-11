@@ -67,13 +67,15 @@ def fit(
     optimizer,
     device,
     epochs: int = 10,
-    save_path: str = "best_model.pth"
+    save_path: str = "best_model.pth",
+    early_stopping_patience: int = 0,
 ):
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
     best_val_acc = 0.0
     best_model_wts = copy.deepcopy(model.state_dict())
+    epochs_without_improvement = 0
 
     history: Dict[str, list] = {
         "train_loss": [],
@@ -104,7 +106,20 @@ def fit(
             best_val_acc = val_acc
             best_model_wts = copy.deepcopy(model.state_dict())
             torch.save(model.state_dict(), save_path)
+            epochs_without_improvement = 0
             print(f"Saved new best model to {save_path}")
+        else:
+            epochs_without_improvement += 1
+
+        if (
+            early_stopping_patience > 0
+            and epochs_without_improvement >= early_stopping_patience
+        ):
+            print(
+                "Early stopping triggered after "
+                f"{epochs_without_improvement} epochs without improvement."
+            )
+            break
 
     model.load_state_dict(best_model_wts)
     print(f"\nBest validation accuracy: {best_val_acc:.4f}")
