@@ -28,24 +28,25 @@ class GradCAM:
         self.model = model
         self.target_layer = target_layer
         self.activations = None
-        self.gradients = None
         self.forward_hook = target_layer.register_forward_hook(self.save_activation)
-        self.backward_hook = target_layer.register_full_backward_hook(self.save_gradient)
 
     def save_activation(self, module, inputs, output):
-        self.activations = output.detach()
-
-    def save_gradient(self, module, grad_input, grad_output):
-        self.gradients = grad_output[0].detach()
+        self.activations = output
+        self.activations.retain_grad()
 
     def __call__(self, image_tensor, class_index):
+        image_tensor = image_tensor.requires_grad_(True)
         self.model.zero_grad()
         output = self.model(image_tensor)
         score = output[:, class_index].sum()
         score.backward()
 
-        weights = self.gradients.mean(dim=(2, 3), keepdim=True)
-        cam = (weights * self.activations).sum(dim=1, keepdim=True)
+        gradients = self.activations.grad
+        if gradients is None:
+            raise RuntimeError("Grad-CAM gradients were not captured.")
+
+        weights = gradients.mean(dim=(2, 3), keepdim=True)
+        cam = (weights * self.activations.detach()).sum(dim=1, keepdim=True)
         cam = torch.relu(cam)
         cam = torch.nn.functional.interpolate(
             cam,
@@ -62,7 +63,6 @@ class GradCAM:
 
     def close(self):
         self.forward_hook.remove()
-        self.backward_hook.remove()
 
 
 def build_model(model_type, model_name, checkpoint_path, device):
