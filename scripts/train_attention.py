@@ -114,6 +114,7 @@ def main():
         class_names=class_names,
         output_dir=output_dir,
         model_prefix=f"eca_{model_name}",
+        metrics=results,
     )
 
     print("\nSaved Figures")

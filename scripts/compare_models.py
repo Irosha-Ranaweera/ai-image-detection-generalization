@@ -9,9 +9,10 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 import matplotlib.pyplot as plt
+import seaborn as sns
 import torch
 from scipy.stats import binomtest
-from sklearn.metrics import RocCurveDisplay
+from sklearn.metrics import PrecisionRecallDisplay, RocCurveDisplay, average_precision_score
 
 from src.data.dataset import get_dataloaders
 from src.evaluation.evaluate import evaluate_model
@@ -138,6 +139,66 @@ def save_roc_curve(output_path, baseline_results, eca_results):
         ax=plt.gca(),
     )
     plt.title("ROC Curve")
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+
+def save_precision_recall_curve(output_path, baseline_results, eca_results):
+    baseline_true = [
+        1 if label == baseline_results["positive_label"] else 0
+        for label in baseline_results["y_true"]
+    ]
+    eca_true = [
+        1 if label == eca_results["positive_label"] else 0
+        for label in eca_results["y_true"]
+    ]
+
+    baseline_ap = average_precision_score(baseline_true, baseline_results["y_score"])
+    eca_ap = average_precision_score(eca_true, eca_results["y_score"])
+
+    plt.figure(figsize=(7, 6))
+    PrecisionRecallDisplay.from_predictions(
+        baseline_true,
+        baseline_results["y_score"],
+        name=f"ResNet18 baseline (AP={baseline_ap:.3f})",
+        ax=plt.gca(),
+    )
+    PrecisionRecallDisplay.from_predictions(
+        eca_true,
+        eca_results["y_score"],
+        name=f"ResNet18 + ECA (AP={eca_ap:.3f})",
+        ax=plt.gca(),
+    )
+    plt.title("Precision-Recall Curve for Fake Class")
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+
+def save_probability_density(output_path, baseline_results, eca_results):
+    baseline_true = [
+        "fake" if label == baseline_results["positive_label"] else "real"
+        for label in baseline_results["y_true"]
+    ]
+    eca_true = [
+        "fake" if label == eca_results["positive_label"] else "real"
+        for label in eca_results["y_true"]
+    ]
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5), sharex=True, sharey=True)
+    plot_specs = [
+        ("ResNet18 baseline", baseline_true, baseline_results["y_score"]),
+        ("ResNet18 + ECA", eca_true, eca_results["y_score"]),
+    ]
+
+    for axis, (title, labels, scores) in zip(axes, plot_specs):
+        sns.kdeplot(x=scores, hue=labels, fill=True, common_norm=False, ax=axis)
+        axis.set_title(title)
+        axis.set_xlabel("Predicted fake probability")
+        axis.set_ylabel("Density")
+        axis.set_xlim(0, 1)
+
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close()
@@ -298,18 +359,30 @@ def main():
         eca_results,
     )
     save_roc_curve(analysis_dir / "roc_curve.png", baseline_results, eca_results)
+    save_precision_recall_curve(
+        analysis_dir / "precision_recall_curve.png",
+        baseline_results,
+        eca_results,
+    )
+    save_probability_density(
+        analysis_dir / "probability_density.png",
+        baseline_results,
+        eca_results,
+    )
 
     save_confusion_matrix(
         baseline_results["confusion_matrix"],
         class_names,
         str(analysis_dir),
         "baseline_resnet18",
+        metrics=baseline_results,
     )
     save_confusion_matrix(
         eca_results["confusion_matrix"],
         class_names,
         str(analysis_dir),
         "eca_resnet18",
+        metrics=eca_results,
     )
 
     report = {
