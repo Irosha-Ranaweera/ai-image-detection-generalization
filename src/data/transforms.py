@@ -48,12 +48,12 @@ def get_transforms(transform_mode: str = "rgb"):
         transforms.Resize((224, 224)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
-        transforms.ColorJitter(
-            brightness=0.1,
-            contrast=0.1,
-            saturation=0.1,
-            hue=0.02,
-        ),
+        # transforms.ColorJitter(
+        #     brightness=0.1,
+        #     contrast=0.1,
+        #     saturation=0.1,
+        #     hue=0.02,
+        # ),
         *frequency_transform,
         transforms.ToTensor(),
         transforms.Normalize(
