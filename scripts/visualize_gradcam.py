@@ -32,14 +32,16 @@ class GradCAM:
 
     def save_activation(self, module, inputs, output):
         self.activations = output
-        self.activations.retain_grad()
+        if self.activations.requires_grad:
+            self.activations.retain_grad()
 
     def __call__(self, image_tensor, class_index):
-        image_tensor = image_tensor.requires_grad_(True)
-        self.model.zero_grad()
-        output = self.model(image_tensor)
-        score = output[:, class_index].sum()
-        score.backward()
+        with torch.enable_grad():
+            image_tensor = image_tensor.requires_grad_(True)
+            self.model.zero_grad()
+            output = self.model(image_tensor)
+            score = output[:, class_index].sum()
+            score.backward()
 
         gradients = self.activations.grad
         if gradients is None:
