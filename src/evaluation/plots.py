@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Dict, List
 
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 
 
@@ -91,6 +92,7 @@ def save_confusion_matrix(
 
     figure_path = output_path / f"{model_prefix}_confusion_matrix.png"
 
+    confusion_matrix = np.asarray(confusion_matrix)
     total = confusion_matrix.sum()
     annotations = []
     for row in confusion_matrix:
@@ -100,7 +102,7 @@ def save_confusion_matrix(
             annotation_row.append(f"{value}\n{percentage:.2f}%")
         annotations.append(annotation_row)
 
-    plt.figure(figsize=(7, 6))
+    fig, axis = plt.subplots(figsize=(7.5, 7.2))
     sns.heatmap(
         confusion_matrix,
         annot=annotations,
@@ -108,10 +110,11 @@ def save_confusion_matrix(
         cmap="Blues",
         xticklabels=class_names,
         yticklabels=class_names,
+        ax=axis,
     )
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
-    plt.title("Confusion Matrix")
+    axis.set_xlabel("Predicted", labelpad=8)
+    axis.set_ylabel("Actual", labelpad=10)
+    axis.set_title("Confusion Matrix", pad=14, fontweight="bold")
 
     if metrics:
         metric_text = (
@@ -120,10 +123,27 @@ def save_confusion_matrix(
             f"Recall(fake)={metrics['recall']:.4f}\n"
             f"F1(fake)={metrics['f1_score']:.4f}"
         )
-        plt.gcf().text(0.5, 0.01, metric_text, ha="center", va="bottom")
+        axis.text(
+            0.5,
+            -0.12,
+            metric_text,
+            transform=axis.transAxes,
+            ha="center",
+            va="top",
+            fontsize=10,
+            linespacing=1.25,
+            bbox={
+                "boxstyle": "round,pad=0.45",
+                "facecolor": "white",
+                "edgecolor": "#d1d5db",
+                "alpha": 0.95,
+            },
+        )
+        fig.subplots_adjust(bottom=0.18)
+    else:
+        fig.subplots_adjust(bottom=0.14)
 
-    plt.tight_layout()
-    plt.savefig(figure_path, dpi=300, bbox_inches="tight", pad_inches=0.35)
+    fig.savefig(figure_path, dpi=300, bbox_inches="tight", pad_inches=0.25)
     plt.close()
 
     return figure_path
